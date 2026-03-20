@@ -4,9 +4,9 @@ version = "0.1.0"
 description = "Empirical inspection of transformer weights through the BP lens"
 requires-python = ">=3.11"
 dependencies = [
-    "torch>=2.2.0,<2.4.0",
     "requests>=2.31.0",
     "rich>=13.0.0",
+    "numpy>=1.26.0",
 ]
 
 [project.scripts]
