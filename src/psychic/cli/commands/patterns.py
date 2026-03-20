@@ -15,7 +15,7 @@ def add_subparser(subparsers):
     p.add_argument("model", nargs="?", default="gpt2", help="Model name")
     p.add_argument("--cache", default=str(DEFAULT_CACHE), help="Cache directory")
     p.add_argument("--layer", type=int, default=None, help="Show only this layer")
-    p.add_argument("--prompts", nargs="+", default=None, help="Prompt file names to use (default: all)")
+    p.add_argument("--index", default="all", help="Index name to use (default: all)")
     p.add_argument("--batch-size", type=int, default=10, help="Print progress every N prompts")
     p.set_defaults(func=cmd_patterns)
 
@@ -24,7 +24,7 @@ def cmd_patterns(args):
     from psychic.core.loader import load_safetensors
     from psychic.core.forward import forward_pass
     from psychic.core.analysis import ANALYSES, classify_head
-    from psychic.core.prompts import load_prompts
+    from psychic.core.prompts import load_prompts, list_indexes
     from psychic.core.tokenizer import BPETokenizer
 
     cache = Path(args.cache)
@@ -39,17 +39,21 @@ def cmd_patterns(args):
         console.print(f"[red]✗[/red] Vocab not found. Run psychic download-vocab.")
         raise SystemExit(1)
 
+    try:
+        prompts = load_prompts(args.index)
+    except FileNotFoundError:
+        console.print(f"[red]✗[/red] Index '{args.index}' not found.")
+        console.print(f"Available: {list_indexes()}")
+        raise SystemExit(1)
+
     tokenizer = BPETokenizer(vocab_path, merges_path)
     console.print("Loading weights...")
     weights = load_safetensors(path)
-
-    prompts = load_prompts(args.prompts)
-    console.print(f"Loaded {len(prompts)} prompts")
+    console.print(f"Loaded {len(prompts)} prompts from index '{args.index}'")
 
     n_layers = 12
     n_heads = 12
 
-    # accumulators: layer -> head -> analysis_name -> list of scores
     acc = {
         layer: {
             head: {name: [] for name in ANALYSES}
@@ -77,10 +81,9 @@ def cmd_patterns(args):
 
     console.print(f"[green]done[/green]\n")
 
-    # display
     layers = [args.layer] if args.layer is not None else range(n_layers)
 
-    table = Table(title=f"Attention Pattern Analysis: {args.model}")
+    table = Table(title=f"Attention Pattern Analysis: {args.model} (index={args.index})")
     table.add_column("Layer", style="cyan", justify="right")
     table.add_column("Head", style="cyan", justify="right")
     for name in ANALYSES:

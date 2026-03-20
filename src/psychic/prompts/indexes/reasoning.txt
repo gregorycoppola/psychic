@@ -1,0 +1,5 @@
+# Reasoning-focused prompts
+logic.txt
+causal.txt
+temporal.txt
+spatial.txt
