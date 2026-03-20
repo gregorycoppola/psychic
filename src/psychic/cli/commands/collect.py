@@ -64,7 +64,7 @@ def add_subparser(subparsers):
 def cmd_collect(args):
     from psychic.core.loader import load_safetensors
     from psychic.core.forward import forward_pass
-    from psychic.core.tokenizer import BPETokenizer
+    from psychic.core.tokenizer import load_tokenizer
     from psychic.core.prompts import load_prompts, list_indexes
     from psychic.core.models import get_config
 
@@ -77,14 +77,8 @@ def cmd_collect(args):
         raise SystemExit(1)
 
     weights_path = cache / cfg["safetensors_filename"]
-    vocab_path = cache / cfg["vocab_filename"]
-    merges_path = cache / cfg["merges_filename"]
-
     if not weights_path.exists():
         console.print(f"[red]✗[/red] Weights not found. Run psychic download {args.model}")
-        raise SystemExit(1)
-    if not vocab_path.exists() or not merges_path.exists():
-        console.print(f"[red]✗[/red] Vocab not found. Run psychic download-vocab {args.model}")
         raise SystemExit(1)
 
     patterns_dir = collection_dir(cache, args.model, args.index)
@@ -103,7 +97,7 @@ def cmd_collect(args):
         console.print(f"Available: {list_indexes()}")
         raise SystemExit(1)
 
-    tokenizer = BPETokenizer(vocab_path, merges_path)
+    tokenizer = load_tokenizer(cfg, cache)
     console.print(f"Loading weights ({cfg['parameters_m']}M params)...")
     weights = load_safetensors(weights_path)
     console.print(f"Loaded {len(prompts)} prompts from index '{args.index}'")

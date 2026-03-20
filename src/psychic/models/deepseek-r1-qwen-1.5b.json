@@ -10,11 +10,10 @@
   "vocab_size": 151936,
   "max_seq_len": 131072,
   "rope_theta": 1000000.0,
+  "tokenizer_type": "tokenizer_json",
   "safetensors_url": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B/resolve/main/model.safetensors",
   "safetensors_filename": "deepseek-r1-qwen-1.5b.safetensors",
-  "vocab_url": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B/resolve/main/vocab.json",
-  "vocab_filename": "deepseek-r1-qwen-1.5b_vocab.json",
-  "merges_url": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B/resolve/main/merges.txt",
-  "merges_filename": "deepseek-r1-qwen-1.5b_merges.txt",
+  "tokenizer_url": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B/resolve/main/tokenizer.json",
+  "tokenizer_filename": "deepseek-r1-qwen-1.5b_tokenizer.json",
   "parameters_m": 1500
 }

@@ -20,7 +20,7 @@ def add_subparser(subparsers):
 def cmd_forward(args):
     from psychic.core.loader import load_safetensors
     from psychic.core.forward import forward_pass
-    from psychic.core.tokenizer import BPETokenizer
+    from psychic.core.tokenizer import load_tokenizer
     from psychic.core.models import get_config
 
     cache = Path(args.cache)
@@ -32,17 +32,13 @@ def cmd_forward(args):
         raise SystemExit(1)
 
     weights_path = cache / cfg["safetensors_filename"]
-    vocab_path = cache / cfg["vocab_filename"]
-    merges_path = cache / cfg["merges_filename"]
-
     if not weights_path.exists():
-        console.print(f"[red]✗[/red] Weights not found.")
-        raise SystemExit(1)
-    if not vocab_path.exists() or not merges_path.exists():
-        console.print(f"[red]✗[/red] Vocab not found.")
+        console.print(f"[red]✗[/red] Weights not found. Run psychic download {args.model}")
         raise SystemExit(1)
 
-    tokenizer = BPETokenizer(vocab_path, merges_path)
+    console.print(f"Loading tokenizer...")
+    tokenizer = load_tokenizer(cfg, cache)
+
     console.print(f"Loading weights ({cfg['parameters_m']}M params)...")
     t0 = time.time()
     weights = load_safetensors(weights_path)
@@ -53,7 +49,7 @@ def cmd_forward(args):
     console.print(f"Input: [cyan]{args.text}[/cyan]")
     console.print(f"Tokens ({len(token_ids)}): {decoded}")
 
-    console.print("Running forward pass...")
+    console.print(f"Running forward pass...")
     t0 = time.time()
     logits, patterns = forward_pass(weights, token_ids, cfg)
     console.print(f"  [green]done in {time.time() - t0:.2f}s[/green]")
