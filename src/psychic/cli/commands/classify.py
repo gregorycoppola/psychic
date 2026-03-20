@@ -15,7 +15,7 @@ def add_subparser(subparsers):
     p.add_argument("model", nargs="?", default="gpt2", help="Model name")
     p.add_argument("--cache", default=str(DEFAULT_CACHE), help="Cache directory")
     p.add_argument("--layer", type=int, default=None, help="Show only this layer")
-    p.add_argument("--prompts", nargs="+", default=None, help="Prompt files to use")
+    p.add_argument("--index", default="all", help="Index name to use (default: all)")
     p.add_argument("--batch-size", type=int, default=10, help="Print progress every N prompts")
     p.set_defaults(func=cmd_classify)
 
@@ -24,7 +24,7 @@ def cmd_classify(args):
     from psychic.core.loader import load_safetensors
     from psychic.core.forward import forward_pass
     from psychic.core.tokenizer import BPETokenizer
-    from psychic.core.prompts import load_prompts
+    from psychic.core.prompts import load_prompts, list_indexes
     from psychic.core.classify import classify_all_prompts, dominant_type, HEAD_TYPES
 
     cache = Path(args.cache)
@@ -39,17 +39,21 @@ def cmd_classify(args):
         console.print(f"[red]✗[/red] Vocab not found. Run psychic download-vocab.")
         raise SystemExit(1)
 
+    try:
+        prompts = load_prompts(args.index)
+    except FileNotFoundError:
+        console.print(f"[red]✗[/red] Index '{args.index}' not found.")
+        console.print(f"Available: {list_indexes()}")
+        raise SystemExit(1)
+
     tokenizer = BPETokenizer(vocab_path, merges_path)
     console.print("Loading weights...")
     weights = load_safetensors(path)
-
-    prompts = load_prompts(args.prompts)
-    console.print(f"Loaded {len(prompts)} prompts")
+    console.print(f"Loaded {len(prompts)} prompts from index '{args.index}'")
 
     n_layers = 12
     n_heads = 12
 
-    # collect all patterns
     all_patterns = []
     console.print(f"Running {len(prompts)} prompts...")
     t0 = time.time()
@@ -65,14 +69,12 @@ def cmd_classify(args):
 
     console.print(f"[green]done in {time.time() - t0:.1f}s[/green]\n")
 
-    # classify
     counts = classify_all_prompts(all_patterns, n_layers, n_heads)
     n_prompts = len(prompts)
 
-    # display
     layers = [args.layer] if args.layer is not None else range(n_layers)
 
-    table = Table(title=f"Head Type Distribution: {args.model} ({n_prompts} prompts)")
+    table = Table(title=f"Head Type Distribution: {args.model} ({n_prompts} prompts, index={args.index})")
     table.add_column("Layer", style="cyan", justify="right")
     table.add_column("Head", style="cyan", justify="right")
     for t in HEAD_TYPES:
@@ -86,7 +88,6 @@ def cmd_classify(args):
             row = [str(layer), str(head)]
             for t in HEAD_TYPES:
                 pct = 100 * c[t] / n_prompts
-                # color by dominance
                 if t == dom and pct > 50:
                     row.append(f"[green]{pct:.0f}%[/green]")
                 elif t == dom:

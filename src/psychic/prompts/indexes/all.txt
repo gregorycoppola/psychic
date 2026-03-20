@@ -1,0 +1,10 @@
+# All prompt files
+general.txt
+factual.txt
+narrative.txt
+logic.txt
+questions.txt
+dialogue.txt
+causal.txt
+temporal.txt
+spatial.txt

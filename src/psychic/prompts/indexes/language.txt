@@ -1,0 +1,5 @@
+# Natural language variety
+general.txt
+narrative.txt
+questions.txt
+dialogue.txt

@@ -1,0 +1,9 @@
+# Logical reasoning sentences
+All men are mortal and Socrates is a man therefore Socrates is mortal
+If it rains then the ground gets wet and it is raining so the ground is wet
+All birds have wings and penguins are birds therefore penguins have wings
+If Jack trusts Jill and Jill trusts Jack then they are allies
+Every request requires authentication and this is a request so it requires authentication
+All mammals are warm blooded and whales are mammals so whales are warm blooded
+If the door is locked then we cannot enter and the door is locked
+No gods are mortal and Zeus is a god therefore Zeus is not mortal
