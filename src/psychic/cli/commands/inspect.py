@@ -1,6 +1,6 @@
 """Inspect model weights — print all tensor names and shapes."""
-import struct
 import json
+import struct
 import numpy as np
 from pathlib import Path
 from rich.console import Console
@@ -10,21 +10,8 @@ console = Console()
 
 DEFAULT_CACHE = Path.home() / ".cache" / "psychic"
 
-DTYPE_MAP = {
-    "F32": np.float32,
-    "F16": np.float16,
-    "BF16": np.float32,  # bfloat16 — load as float32
-    "I32": np.int32,
-    "I64": np.int64,
-}
-
 
 def load_safetensors(path: Path) -> dict:
-    """
-    Load a .safetensors file without any dependencies.
-    Format: 8-byte little-endian uint64 header length,
-    then JSON header, then raw tensor data.
-    """
     with open(path, "rb") as f:
         header_len = struct.unpack("<Q", f.read(8))[0]
         header_bytes = f.read(header_len)
@@ -37,19 +24,18 @@ def load_safetensors(path: Path) -> dict:
     for name, meta in header.items():
         if name == "__metadata__":
             continue
-        dtype = DTYPE_MAP.get(meta["dtype"], np.float32)
         start, end = meta["data_offsets"]
         shape = meta["shape"]
         raw = data[start:end]
         if meta["dtype"] == "BF16":
-            # bfloat16: reinterpret as uint16, shift to float32
             u16 = np.frombuffer(raw, dtype=np.uint16)
             u32 = u16.astype(np.uint32) << 16
             arr = u32.view(np.float32).reshape(shape)
+        elif meta["dtype"] == "F16":
+            arr = np.frombuffer(raw, dtype=np.float16).reshape(shape)
         else:
-            arr = np.frombuffer(raw, dtype=dtype).reshape(shape)
+            arr = np.frombuffer(raw, dtype=np.float32).reshape(shape)
         tensors[name] = arr
-
     return tensors
 
 
@@ -57,19 +43,29 @@ def add_subparser(subparsers):
     p = subparsers.add_parser("inspect", help="Print all weight tensor names and shapes")
     p.add_argument("model", nargs="?", default="gpt2", help="Model name")
     p.add_argument("--cache", default=str(DEFAULT_CACHE), help="Cache directory")
+    p.add_argument("--filter", default=None, help="Only show keys containing this string")
+    p.add_argument("--layer", default=None, help="Only show keys for this layer number")
     p.set_defaults(func=cmd_inspect)
 
 
 def cmd_inspect(args):
-    cache = Path(args.cache)
-    path = cache / f"{args.model}.safetensors"
+    from psychic.core.models import get_config
 
-    if not path.exists():
-        console.print(f"[red]✗[/red] Not found: {path}")
-        console.print("Run [bold]psychic download[/bold] first.")
+    cache = Path(args.cache)
+
+    try:
+        cfg = get_config(args.model)
+    except FileNotFoundError as e:
+        console.print(f"[red]✗[/red] {e}")
         raise SystemExit(1)
 
-    console.print(f"Loading [bold]{path.name}[/bold]...")
+    path = cache / cfg["safetensors_filename"]
+    if not path.exists():
+        console.print(f"[red]✗[/red] Not found: {path}")
+        console.print(f"Run [bold]psychic download {args.model}[/bold] first.")
+        raise SystemExit(1)
+
+    console.print(f"Loading [bold]{path.name}[/bold] ({cfg['parameters_m']}M, family={cfg['family']})...")
     weights = load_safetensors(path)
 
     table = Table(title=f"Weights: {path.name}")
@@ -79,10 +75,16 @@ def cmd_inspect(args):
 
     total = 0
     for name, tensor in sorted(weights.items()):
+        # apply filters
+        if args.filter and args.filter not in name:
+            continue
+        if args.layer and f".{args.layer}." not in name:
+            continue
+
         shape = list(tensor.shape)
         n = int(np.prod(tensor.shape)) if tensor.shape else 1
         total += n
         table.add_row(name, str(shape), f"{n:,}")
 
     console.print(table)
-    console.print(f"\nTotal parameters: [bold]{total:,}[/bold]")
+    console.print(f"\nShowing params: [bold]{total:,}[/bold]")

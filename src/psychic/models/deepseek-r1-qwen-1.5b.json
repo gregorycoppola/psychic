@@ -1,0 +1,19 @@
+{
+  "name": "deepseek-r1-qwen-1.5b",
+  "family": "qwen2",
+  "n_layers": 28,
+  "n_heads": 12,
+  "n_kv_heads": 2,
+  "d_model": 1536,
+  "d_head": 128,
+  "d_ff": 8960,
+  "vocab_size": 151936,
+  "max_seq_len": 131072,
+  "rope_theta": 1000000.0,
+  "tokenizer_type": "tokenizer_json",
+  "safetensors_url": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B/resolve/main/model.safetensors",
+  "safetensors_filename": "deepseek-r1-qwen-1.5b.safetensors",
+  "tokenizer_url": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B/resolve/main/tokenizer.json",
+  "tokenizer_filename": "deepseek-r1-qwen-1.5b_tokenizer.json",
+  "parameters_m": 1500
+}

@@ -1,4 +1,4 @@
-"""Download tokenizer vocab and merges files from Hugging Face."""
+"""Download tokenizer files from Hugging Face."""
 from pathlib import Path
 from rich.console import Console
 
@@ -8,7 +8,7 @@ DEFAULT_CACHE = Path.home() / ".cache" / "psychic"
 
 
 def add_subparser(subparsers):
-    p = subparsers.add_parser("download-vocab", help="Download tokenizer vocab and merges")
+    p = subparsers.add_parser("download-vocab", help="Download tokenizer files")
     p.add_argument("model", nargs="?", default="gpt2", help="Model name")
     p.add_argument("--cache", default=str(DEFAULT_CACHE), help="Cache directory")
     p.add_argument("--force", action="store_true", help="Re-download even if exists")
@@ -28,5 +28,12 @@ def cmd_download_vocab(args):
         console.print(f"[red]✗[/red] {e}")
         raise SystemExit(1)
 
-    download_file(cfg["vocab_url"], cache / cfg["vocab_filename"], args.force)
-    download_file(cfg["merges_url"], cache / cfg["merges_filename"], args.force)
+    tokenizer_type = cfg.get("tokenizer_type", "bpe")
+
+    if tokenizer_type == "tokenizer_json":
+        # single unified tokenizer.json
+        download_file(cfg["tokenizer_url"], cache / cfg["tokenizer_filename"], args.force)
+    else:
+        # legacy GPT-2 style: vocab.json + merges.txt
+        download_file(cfg["vocab_url"], cache / cfg["vocab_filename"], args.force)
+        download_file(cfg["merges_url"], cache / cfg["merges_filename"], args.force)

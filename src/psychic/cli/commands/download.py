@@ -45,5 +45,14 @@ def cmd_download(args):
         console.print(f"[red]✗[/red] {e}")
         raise SystemExit(1)
 
-    console.print(f"Model: [bold]{cfg['name']}[/bold] ({cfg['parameters_m']}M params)")
-    download_file(cfg["safetensors_url"], cache / cfg["safetensors_filename"], args.force)
+    console.print(f"Model: [bold]{cfg['name']}[/bold] ({cfg['parameters_m']}M params, family={cfg['family']})")
+
+    # support both single file and sharded models
+    if "safetensors_url" in cfg:
+        download_file(cfg["safetensors_url"], cache / cfg["safetensors_filename"], args.force)
+    elif "safetensors_shards" in cfg:
+        for shard in cfg["safetensors_shards"]:
+            download_file(shard["url"], cache / shard["filename"], args.force)
+    else:
+        console.print("[red]✗[/red] No download URL in model config.")
+        raise SystemExit(1)
