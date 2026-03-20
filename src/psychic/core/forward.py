@@ -1,4 +1,4 @@
-"""GPT-2 forward pass. Returns logits and attention patterns."""
+"""GPT-2 family forward pass. Returns logits and attention patterns."""
 import numpy as np
 
 
@@ -18,13 +18,19 @@ def gelu(x):
     return 0.5 * x * (1 + np.tanh(np.sqrt(2 / np.pi) * (x + 0.044715 * x**3)))
 
 
-def forward_pass(weights, token_ids, n_layers=12, n_heads=12, d_model=768, d_head=64):
+def forward_pass(weights, token_ids, cfg: dict):
     """
-    Full GPT-2 forward pass.
+    GPT-2 family forward pass.
+    cfg must have: n_layers, n_heads, d_model, d_head
     Returns (logits, attention_patterns).
-      logits:           [seq_len, vocab_size]
+      logits:             [seq_len, vocab_size]
       attention_patterns: list of [n_heads, seq_len, seq_len] per layer
     """
+    n_layers = cfg["n_layers"]
+    n_heads = cfg["n_heads"]
+    d_model = cfg["d_model"]
+    d_head = cfg["d_head"]
+
     seq_len = len(token_ids)
     token_ids = np.array(token_ids)
 

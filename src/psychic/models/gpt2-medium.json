@@ -1,0 +1,18 @@
+{
+  "name": "gpt2-medium",
+  "family": "gpt2",
+  "n_layers": 24,
+  "n_heads": 16,
+  "d_model": 1024,
+  "d_head": 64,
+  "d_ff": 4096,
+  "vocab_size": 50257,
+  "max_seq_len": 1024,
+  "safetensors_url": "https://huggingface.co/gpt2-medium/resolve/main/model.safetensors",
+  "safetensors_filename": "gpt2-medium.safetensors",
+  "vocab_url": "https://huggingface.co/gpt2-medium/resolve/main/vocab.json",
+  "vocab_filename": "gpt2-medium_vocab.json",
+  "merges_url": "https://huggingface.co/gpt2-medium/resolve/main/merges.txt",
+  "merges_filename": "gpt2-medium_merges.txt",
+  "parameters_m": 345
+}
