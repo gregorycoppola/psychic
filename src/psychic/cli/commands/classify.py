@@ -17,6 +17,7 @@ def add_subparser(subparsers):
     p.add_argument("--layer", type=int, default=None, help="Show only this layer")
     p.add_argument("--index", default="all", help="Index name to use (default: all)")
     p.add_argument("--batch-size", type=int, default=10, help="Print progress every N prompts")
+    p.add_argument("--no-cache", action="store_true", help="Re-run forward pass even if collected")
     p.set_defaults(func=cmd_classify)
 
 
@@ -26,53 +27,61 @@ def cmd_classify(args):
     from psychic.core.tokenizer import BPETokenizer
     from psychic.core.prompts import load_prompts, list_indexes
     from psychic.core.classify import classify_all_prompts, dominant_type, HEAD_TYPES
+    from psychic.cli.commands.collect import collection_dir, load_collection
 
     cache = Path(args.cache)
-    path = cache / f"{args.model}.safetensors"
-    vocab_path = cache / f"{args.model}_vocab.json"
-    merges_path = cache / f"{args.model}_merges.txt"
+    patterns_dir = collection_dir(cache, args.model, args.index)
 
-    if not path.exists():
-        console.print(f"[red]✗[/red] Weights not found. Run psychic download.")
-        raise SystemExit(1)
-    if not vocab_path.exists() or not merges_path.exists():
-        console.print(f"[red]✗[/red] Vocab not found. Run psychic download-vocab.")
-        raise SystemExit(1)
+    # load from disk if available
+    if patterns_dir.exists() and not args.no_cache:
+        console.print(f"Loading from collection: [cyan]{patterns_dir.name}[/cyan]")
+        meta, all_patterns, _ = load_collection(patterns_dir)
+        n_prompts = meta["n_prompts"]
+        console.print(f"  {n_prompts} prompts, collected {meta['timestamp'][:10]}")
 
-    try:
-        prompts = load_prompts(args.index)
-    except FileNotFoundError:
-        console.print(f"[red]✗[/red] Index '{args.index}' not found.")
-        console.print(f"Available: {list_indexes()}")
-        raise SystemExit(1)
+    else:
+        # run forward pass live
+        path = cache / f"{args.model}.safetensors"
+        vocab_path = cache / f"{args.model}_vocab.json"
+        merges_path = cache / f"{args.model}_merges.txt"
 
-    tokenizer = BPETokenizer(vocab_path, merges_path)
-    console.print("Loading weights...")
-    weights = load_safetensors(path)
-    console.print(f"Loaded {len(prompts)} prompts from index '{args.index}'")
+        if not path.exists():
+            console.print(f"[red]✗[/red] Weights not found. Run psychic download.")
+            raise SystemExit(1)
+        if not vocab_path.exists() or not merges_path.exists():
+            console.print(f"[red]✗[/red] Vocab not found. Run psychic download-vocab.")
+            raise SystemExit(1)
 
-    n_layers = 12
-    n_heads = 12
+        try:
+            prompts = load_prompts(args.index)
+        except FileNotFoundError:
+            console.print(f"[red]✗[/red] Index '{args.index}' not found.")
+            console.print(f"Available: {list_indexes()}")
+            raise SystemExit(1)
 
-    all_patterns = []
-    console.print(f"Running {len(prompts)} prompts...")
-    t0 = time.time()
+        tokenizer = BPETokenizer(vocab_path, merges_path)
+        console.print("Loading weights...")
+        weights = load_safetensors(path)
+        console.print(f"Loaded {len(prompts)} prompts from index '{args.index}'")
 
-    for i, prompt in enumerate(prompts):
-        token_ids = tokenizer.encode(prompt)
-        _, patterns = forward_pass(weights, token_ids)
-        all_patterns.append(patterns)
+        all_patterns = []
+        t0 = time.time()
 
-        if (i + 1) % args.batch_size == 0 or (i + 1) == len(prompts):
-            elapsed = time.time() - t0
-            console.print(f"  [{i+1}/{len(prompts)}] {elapsed:.1f}s — {prompt[:50]}")
+        for i, prompt in enumerate(prompts):
+            token_ids = tokenizer.encode(prompt)
+            _, patterns = forward_pass(weights, token_ids)
+            all_patterns.append(patterns)
 
-    console.print(f"[green]done in {time.time() - t0:.1f}s[/green]\n")
+            if (i + 1) % args.batch_size == 0 or (i + 1) == len(prompts):
+                elapsed = time.time() - t0
+                console.print(f"  [{i+1}/{len(prompts)}] {elapsed:.1f}s — {prompt[:50]}")
 
-    counts = classify_all_prompts(all_patterns, n_layers, n_heads)
-    n_prompts = len(prompts)
+        n_prompts = len(prompts)
+        console.print(f"[green]done in {time.time() - t0:.1f}s[/green]\n")
 
-    layers = [args.layer] if args.layer is not None else range(n_layers)
+    counts = classify_all_prompts(all_patterns, 12, 12)
+
+    layers = [args.layer] if args.layer is not None else range(12)
 
     table = Table(title=f"Head Type Distribution: {args.model} ({n_prompts} prompts, index={args.index})")
     table.add_column("Layer", style="cyan", justify="right")
@@ -82,7 +91,7 @@ def cmd_classify(args):
     table.add_column("Dominant", style="bold magenta")
 
     for layer in layers:
-        for head in range(n_heads):
+        for head in range(12):
             c = counts[layer][head]
             dom = dominant_type(c)
             row = [str(layer), str(head)]
