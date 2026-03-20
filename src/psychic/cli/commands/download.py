@@ -1,5 +1,4 @@
 """Download GPT-2 weights directly from Hugging Face."""
-import os
 import requests
 from pathlib import Path
 from rich.console import Console
@@ -9,12 +8,12 @@ console = Console()
 
 MODELS = {
     "gpt2": {
-        "url": "https://huggingface.co/gpt2/resolve/main/pytorch_model.bin",
-        "filename": "gpt2.bin",
+        "url": "https://huggingface.co/gpt2/resolve/main/model.safetensors",
+        "filename": "gpt2.safetensors",
     },
     "gpt2-medium": {
-        "url": "https://huggingface.co/gpt2-medium/resolve/main/pytorch_model.bin",
-        "filename": "gpt2-medium.bin",
+        "url": "https://huggingface.co/gpt2-medium/resolve/main/model.safetensors",
+        "filename": "gpt2-medium.safetensors",
     },
 }
 
@@ -49,11 +48,7 @@ def cmd_download(args):
 
     total = int(response.headers.get("content-length", 0))
 
-    with Progress(
-        BarColumn(),
-        DownloadColumn(),
-        TransferSpeedColumn(),
-    ) as progress:
+    with Progress(BarColumn(), DownloadColumn(), TransferSpeedColumn()) as progress:
         task = progress.add_task("downloading", total=total)
         with open(dest, "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
