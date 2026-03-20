@@ -10,73 +10,50 @@ console = Console()
 DEFAULT_CACHE = Path.home() / ".cache" / "psychic"
 
 
-class NumpyUnpickler(pickle.Unpickler):
-    """Custom unpickler that loads torch tensors as numpy arrays."""
-
-    def find_class(self, module, name):
-        if module == "torch" and name == "FloatStorage":
-            return np.float32
-        if module == "torch" and name == "LongStorage":
-            return np.int64
-        if module == "torch._utils" and name == "_rebuild_tensor_v2":
-            return self._rebuild_tensor
-        return super().find_class(module, name)
-
-    @staticmethod
-    def _rebuild_tensor(storage, offset, shape, stride, *args):
-        arr = np.array(storage).reshape(shape)
-        return arr
-
-
 def load_weights(path: Path) -> dict:
-    """Load a pytorch .bin file without torch."""
-    import pickle
-    import struct
-    import zipfile
+    """Load a pytorch .bin file (legacy pickle format) without torch."""
 
-    # pytorch .bin files are zip archives containing a pickle
-    with zipfile.ZipFile(path) as zf:
-        # find the data.pkl entry
-        names = zf.namelist()
-        pkl_name = next(n for n in names if n.endswith("data.pkl"))
-        archive_name = pkl_name.replace("data.pkl", "")
+    class TorchUnpickler(pickle.Unpickler):
+        def persistent_load(self, pid):
+            # pid is (storage_type, key, location, size) or similar
+            # In legacy format, storage is already embedded
+            return pid
 
-        class TorchUnpickler(pickle.Unpickler):
-            def __init__(self, f, zf, archive_name):
-                super().__init__(f)
-                self.zf = zf
-                self.archive_name = archive_name
-                self.storages = {}
+        def find_class(self, module, name):
+            if name == "_rebuild_tensor_v2":
+                return rebuild_tensor
+            if name == "_rebuild_parameter":
+                return rebuild_parameter
+            # For storage types, return a dummy that just passes through
+            if module in ("torch", "torch.storage") and "Storage" in name:
+                return make_storage(name)
+            return super().find_class(module, name)
 
-            def persistent_load(self, pid):
-                storage_type, key, location, size = pid[1], pid[2], pid[3], pid[4]
-                data_path = f"{self.archive_name}data/{key}"
-                with self.zf.open(data_path) as df:
-                    buf = df.read()
-                if "float" in str(storage_type).lower():
-                    arr = np.frombuffer(buf, dtype=np.float32)
-                else:
-                    arr = np.frombuffer(buf, dtype=np.int64)
-                return arr
+    def make_storage(name):
+        def storage_constructor(*args):
+            return args
+        return storage_constructor
 
-            def find_class(self, module, name):
-                if name == "_rebuild_tensor_v2":
-                    return rebuild_tensor
-                if name == "_rebuild_parameter":
-                    return rebuild_parameter
-                return super().find_class(module, name)
+    def rebuild_tensor(storage, offset, shape, stride, requires_grad=False, *args):
+        # storage is whatever came back from persistent_load
+        # Try to make a numpy array from it
+        try:
+            if isinstance(storage, np.ndarray):
+                return storage.reshape(shape) if shape else storage
+            elif isinstance(storage, (list, tuple)) and len(storage) > 0:
+                arr = np.array(storage[0]) if not isinstance(storage[0], np.ndarray) else storage[0]
+                return arr.reshape(shape) if shape else arr
+            else:
+                return np.zeros(shape, dtype=np.float32)
+        except Exception:
+            return np.zeros(shape if shape else (1,), dtype=np.float32)
 
-        def rebuild_tensor(storage, offset, shape, stride, *args):
-            if len(shape) == 0:
-                return storage[offset:offset+1].reshape(())
-            return storage[offset:offset+np.prod(shape)].reshape(shape)
+    def rebuild_parameter(data, requires_grad=False, *args):
+        return data
 
-        def rebuild_parameter(data, requires_grad, *args):
-            return data
-
-        with zf.open(pkl_name) as f:
-            unpickler = TorchUnpickler(f, zf, archive_name)
-            weights = unpickler.load()
+    with open(path, "rb") as f:
+        unpickler = TorchUnpickler(f)
+        weights = unpickler.load()
 
     return weights
 
@@ -108,9 +85,9 @@ def cmd_inspect(args):
 
     total = 0
     for name, tensor in weights.items():
-        if hasattr(tensor, "shape"):
+        if hasattr(tensor, "shape") and len(tensor.shape) > 0:
             shape = list(tensor.shape)
-            n = int(np.prod(tensor.shape)) if len(tensor.shape) > 0 else 1
+            n = int(np.prod(tensor.shape))
         else:
             shape = []
             n = 1
