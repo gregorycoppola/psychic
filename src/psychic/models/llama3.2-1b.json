@@ -1,0 +1,20 @@
+{
+  "name": "llama3.2-1b",
+  "family": "llama",
+  "n_layers": 16,
+  "n_heads": 32,
+  "n_kv_heads": 8,
+  "d_model": 2048,
+  "d_head": 64,
+  "d_ff": 8192,
+  "vocab_size": 128256,
+  "max_seq_len": 131072,
+  "rope_theta": 500000.0,
+  "tokenizer_type": "tokenizer_json",
+  "tie_word_embeddings": true,
+  "safetensors_url": "https://huggingface.co/meta-llama/Llama-3.2-1B/resolve/main/model.safetensors",
+  "safetensors_filename": "llama3.2-1b.safetensors",
+  "tokenizer_url": "https://huggingface.co/meta-llama/Llama-3.2-1B/resolve/main/tokenizer.json",
+  "tokenizer_filename": "llama3.2-1b_tokenizer.json",
+  "parameters_m": 1000
+}
