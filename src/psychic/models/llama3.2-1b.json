@@ -12,9 +12,9 @@
   "rope_theta": 500000.0,
   "tokenizer_type": "tokenizer_json",
   "tie_word_embeddings": true,
-  "safetensors_url": "https://huggingface.co/meta-llama/Llama-3.2-1B/resolve/main/model.safetensors",
+  "safetensors_url": "https://huggingface.co/NousResearch/Llama-3.2-1B/resolve/main/model.safetensors",
   "safetensors_filename": "llama3.2-1b.safetensors",
-  "tokenizer_url": "https://huggingface.co/meta-llama/Llama-3.2-1B/resolve/main/tokenizer.json",
+  "tokenizer_url": "https://huggingface.co/NousResearch/Llama-3.2-1B/resolve/main/tokenizer.json",
   "tokenizer_filename": "llama3.2-1b_tokenizer.json",
   "parameters_m": 1000
 }
