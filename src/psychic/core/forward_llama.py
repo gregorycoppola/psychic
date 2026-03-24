@@ -37,12 +37,6 @@ def apply_rope(q, k, seq_len, d_head, rope_theta=500000.0):
 
 
 def forward_pass(weights, token_ids, cfg: dict):
-    """
-    Llama 3 family forward pass.
-    Returns (logits, attention_patterns).
-      logits:             [seq_len, vocab_size]
-      attention_patterns: list of [n_heads, seq_len, seq_len] per layer
-    """
     n_layers = cfg["n_layers"]
     n_heads = cfg["n_heads"]
     n_kv_heads = cfg.get("n_kv_heads", n_heads)
@@ -60,11 +54,9 @@ def forward_pass(weights, token_ids, cfg: dict):
     all_patterns = []
 
     for layer in range(n_layers):
-        # pre-attention RMSNorm
         ln1_w = weights[f"model.layers.{layer}.input_layernorm.weight"]
         x_ln = rms_norm(x, ln1_w)
 
-        # QKV projections — no bias in Llama 3
         wq = weights[f"model.layers.{layer}.self_attn.q_proj.weight"]
         wk = weights[f"model.layers.{layer}.self_attn.k_proj.weight"]
         wv = weights[f"model.layers.{layer}.self_attn.v_proj.weight"]
@@ -93,11 +85,9 @@ def forward_pass(weights, token_ids, cfg: dict):
         attn_out = attn_out @ wo.T
         x = x + attn_out
 
-        # post-attention RMSNorm
         ln2_w = weights[f"model.layers.{layer}.post_attention_layernorm.weight"]
         x_ln2 = rms_norm(x, ln2_w)
 
-        # SwiGLU FFN
         w_gate = weights[f"model.layers.{layer}.mlp.gate_proj.weight"]
         w_up   = weights[f"model.layers.{layer}.mlp.up_proj.weight"]
         w_down = weights[f"model.layers.{layer}.mlp.down_proj.weight"]
@@ -107,12 +97,11 @@ def forward_pass(weights, token_ids, cfg: dict):
         ffn_out = (silu(gate) * up) @ w_down.T
         x = x + ffn_out
 
-    # final norm
     ln_f_w = weights["model.norm.weight"]
     x = rms_norm(x, ln_f_w)
 
-    # lm_head — Llama 3.2 1B does NOT tie embeddings
-    lm_head = weights["lm_head.weight"]
+    # tied embeddings — reuse embed_tokens
+    lm_head = weights.get("lm_head.weight", weights["model.embed_tokens.weight"])
     logits = x @ lm_head.T
 
     return logits, all_patterns
